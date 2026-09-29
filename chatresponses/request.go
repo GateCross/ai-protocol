@@ -98,13 +98,13 @@ func ResponsesToChat(body map[string]any) (map[string]any, error) {
 			out["response_format"] = rf
 		}
 	}
+	// reasoning_effort is a scalar string field on the chat wire: only the
+	// effort value carries over. reasoning.summary (OpenAI Responses clients
+	// always set one, e.g. "auto") and every other reasoning.* key have no
+	// chat equivalent, so they drop here.
 	if r, ok := jsonx.AsMap(body["reasoning"]); ok {
-		if _, hasSummary := r["summary"]; hasSummary {
-			out["reasoning_effort"] = r
-		} else if e, ok := r["effort"]; ok {
+		if e, ok := r["effort"]; ok {
 			out["reasoning_effort"] = e
-		} else {
-			out["reasoning_effort"] = r
 		}
 	}
 	if b, ok := jsonx.Bool(body["stream"]); ok && b {

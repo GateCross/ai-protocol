@@ -438,6 +438,31 @@ func TestChatToResponsesStructuredOutput(t *testing.T) {
 	}
 }
 
+func TestResponsesToChatReasoningEffortStaysScalar(t *testing.T) {
+	// OpenAI Responses clients (pi-ai among them) always set a summary next to
+	// the effort. The chat wire has no summary and reasoning_effort is a string,
+	// so the fold must carry the effort scalar and nothing else — an object
+	// here is what made OpenRouter answer "reasoning_effort: Invalid option".
+	in := jsonMap{
+		"model":             "m",
+		"input":             "hi",
+		"max_output_tokens": 8,
+		"reasoning":         map[string]any{"effort": "high", "summary": "auto"},
+	}
+	out := convertReq(t, Responses, Chat, in)
+	if out["reasoning_effort"] != "high" {
+		t.Fatalf("effort=%v (%T)", out["reasoning_effort"], out["reasoning_effort"])
+	}
+
+	// No effort: nothing to express on the chat wire, summary or not.
+	delete(in, "effort")
+	in["reasoning"] = map[string]any{"summary": "auto"}
+	out = convertReq(t, Responses, Chat, in)
+	if _, ok := out["reasoning_effort"]; ok {
+		t.Fatalf("effort=%v", out["reasoning_effort"])
+	}
+}
+
 func TestMessagesResponseToChat(t *testing.T) {
 	in := jsonMap{
 		"id":    "msg_1",
