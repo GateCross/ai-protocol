@@ -26,38 +26,17 @@ func (o *Observer) Feed(ev Event) error {
 	if o.Result.Terminal {
 		return nil
 	}
-	d := ev.Dialect()
-	if d == Chat && IsDone(ev.Data) {
+	facts := ClassifyEvent("", ev)
+	if facts.Terminal {
 		o.Result.Terminal = true
-		return nil
 	}
-	var obj map[string]any
-	if json.Unmarshal([]byte(ev.Data), &obj) != nil {
-		return nil
-	}
-	if d == "" {
-		if _, ok := obj["error"]; ok {
-			d = Chat
+	if facts.Kind == EventFailure {
+		var obj map[string]any
+		if json.Unmarshal([]byte(ev.Data), &obj) != nil {
+			obj = nil
 		}
-	}
-	if typ, _ := obj["type"].(string); typ == "error" || typ == "response.failed" {
-		o.Result.Terminal = true
 		o.Result.InBandErr = InBandError(obj)
 		return o.Result.InBandErr
-	}
-	if _, ok := obj["error"]; ok && d == Chat {
-		o.Result.Terminal = true
-		o.Result.InBandErr = InBandError(obj)
-		return o.Result.InBandErr
-	}
-	if typ, _ := obj["type"].(string); d == Messages && typ == "message_stop" {
-		o.Result.Terminal = true
-		return nil
-	}
-	if typ, _ := obj["type"].(string); d == Responses &&
-		(typ == "response.completed" || typ == "response.incomplete") {
-		o.Result.Terminal = true
-		return nil
 	}
 	return nil
 }

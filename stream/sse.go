@@ -96,47 +96,19 @@ func WriteDone(w io.Writer, flush func()) (int, error) {
 func Scan(r io.Reader, fn func(Event) error) error {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(nil, maxEventBytes)
-	var ev Event
-	var data []string
-	flush := func() error {
-		if ev.Event == "" && len(data) == 0 {
-			return nil
-		}
-		ev.Data = strings.Join(data, "\n")
-		err := fn(ev)
-		ev = Event{}
-		data = data[:0]
-		return err
-	}
+	var framer Framer
 	for sc.Scan() {
-		line := sc.Text()
-		if line == "" {
-			if err := flush(); err != nil {
-				return err
-			}
-			continue
+		if err := framer.Feed(sc.Bytes(), fn); err != nil {
+			return err
 		}
-		if strings.HasPrefix(line, ":") {
-			continue
-		}
-		name, val, _ := strings.Cut(line, ":")
-		if strings.HasPrefix(val, " ") {
-			val = val[1:]
-		}
-		switch name {
-		case "event":
-			ev.Event = val
-		case "data":
-			data = append(data, val)
+		if err := framer.Feed([]byte{'\n'}, fn); err != nil {
+			return err
 		}
 	}
 	if err := sc.Err(); err != nil {
 		return err
 	}
-	if err := flush(); err != nil {
-		return err
-	}
-	return nil
+	return framer.Finish(fn)
 }
 
 func IsDone(data string) bool {

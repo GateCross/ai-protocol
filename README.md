@@ -25,6 +25,12 @@ them.
   dialect requires that the caller declined to supply (Messages folds and
   `max_tokens`), `ConversionError` for a body it cannot read, and
   `StreamResult` (`Terminal`/`Truncated`/`InBandErr`) for how a stream ended.
+- `stream.Framer` incrementally yields complete SSE events from split reads;
+  `stream.ClassifyEvent` reports per-event public-protocol facts (prelude,
+  content, reasoning, completion, incomplete, failure or unknown). A Chat
+  `finish_reason` is a logical completion fact, not a wire-terminal frame;
+  Chat's `[DONE]` remains distinct. These facts do not decide retry, billing or
+  routing.
 - Offline and standard-library only. No module dependencies, no I/O, no clock.
 
 **What it is not**
@@ -92,6 +98,15 @@ result, err := protocol.PipeStreamWith(protocol.Chat, protocol.Responses, dst, s
 A nil hook is the identity: the bytes written are exactly what the converter
 produces on its own. Hooks are **not** called on the same-dialect path, which is
 a raw copy with nothing decoded to hand a hook.
+
+`stream.Framer` dispatches only after an SSE event delimiter, retaining partial
+lines across `Feed` calls and dispatching the final event at `Finish`. `Event`
+contains the decoded event name and data only: a host that observes events while
+forwarding must retain and replay the original wire bytes separately if it
+needs to preserve comments, `id`, `retry`, or exact line endings. `ClassifyEvent`
+requires the public source dialect when inference is ambiguous and returns
+`EventUnknown` for payloads it cannot classify; callers own the compatibility
+policy for unknown events.
 
 ## Changing the boundary
 

@@ -282,9 +282,11 @@ var boundarySurfaceAllowlist = map[string][]string{
 		"UnsupportedParamError", "UnsupportedParamError.Error",
 	},
 	"stream": {
-		"Chat", "Dialect", "Event", "Event.Dialect", "Event.Encode", "Fail", "InBandError", "IsDone",
-		"Messages", "Observer", "Observer.Feed", "Responses", "Result", "Scan", "WriteDone",
-		"WriteEvent", "WriteEventWith",
+		"Chat", "ClassifyEvent", "Dialect", "Event", "Event.Dialect", "Event.Encode", "EventComplete",
+		"EventContent", "EventFacts", "EventFailure", "EventIncomplete", "EventKind", "EventPrelude",
+		"EventReasoning", "EventUnknown", "Fail", "Framer", "Framer.Feed", "Framer.Finish",
+		"InBandError", "IsDone", "Messages", "Observer",
+		"Observer.Feed", "Responses", "Result", "Scan", "WriteDone", "WriteEvent", "WriteEventWith",
 	},
 	"types": {
 		"BudgetFromEffort", "BudgetHigh", "BudgetLow", "BudgetMax", "BudgetMedium", "BudgetMinimal",
@@ -307,6 +309,12 @@ func actualSurface(files map[string]*ast.File) map[string][]string {
 		for _, decl := range file.Decls {
 			switch d := decl.(type) {
 			case *ast.FuncDecl:
+				// A private method on an exported receiver is not part of the
+				// package contract; do not let the receiver's capitalized prefix
+				// make ast.IsExported misclassify names such as Framer.flush.
+				if !ast.IsExported(d.Name.Name) {
+					continue
+				}
 				name := d.Name.Name
 				if d.Recv != nil && len(d.Recv.List) > 0 {
 					if recv := receiverName(d.Recv.List[0].Type); recv != "" {
