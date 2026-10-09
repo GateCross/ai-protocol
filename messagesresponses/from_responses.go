@@ -282,9 +282,10 @@ func reasoningToThinking(r map[string]any) map[string]any {
 	if !ok || effort == "none" {
 		return nil
 	}
-	th := map[string]any{"type": "enabled", "budget_tokens": budget}
-	if s := jsonx.GetString(r, "summary"); s != "" {
-		th["summary"] = s
-	}
-	return th
+	// Only type and budget_tokens: the Messages thinking object has no
+	// summary member, and carrying the Responses-only r.summary here draws
+	// "thinking.enabled.summary: Extra inputs are not permitted" from the
+	// upstream. Summary is a Responses-API concept with no Messages
+	// equivalent, so the faithful fold drops it.
+	return map[string]any{"type": "enabled", "budget_tokens": budget}
 }

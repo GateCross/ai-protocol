@@ -463,6 +463,34 @@ func TestResponsesToChatReasoningEffortStaysScalar(t *testing.T) {
 	}
 }
 
+func TestResponsesToMessagesThinkingDropsSummary(t *testing.T) {
+	// pi-ai and other Responses clients always set a summary next to the
+	// effort. The Messages thinking object has no summary member, so carrying
+	// it draws "thinking.enabled.summary: Extra inputs are not permitted" from
+	// an Anthropic-protocol upstream. The fold must emit type+budget_tokens
+	// only, whatever the source set.
+	in := jsonMap{
+		"model":             "m",
+		"input":             "hi",
+		"max_output_tokens": 8,
+		"reasoning":         map[string]any{"effort": "high", "summary": "auto"},
+	}
+	out := convertReq(t, Responses, Messages, in)
+	thinking, ok := out["thinking"].(map[string]any)
+	if !ok {
+		t.Fatalf("thinking=%v", out["thinking"])
+	}
+	if _, has := thinking["summary"]; has {
+		t.Fatalf("summary leaked into Messages thinking: %v", thinking)
+	}
+	if thinking["type"] != "enabled" {
+		t.Fatalf("type=%v", thinking["type"])
+	}
+	if _, has := thinking["budget_tokens"]; !has {
+		t.Fatalf("budget_tokens missing: %v", thinking)
+	}
+}
+
 func TestMessagesResponseToChat(t *testing.T) {
 	in := jsonMap{
 		"id":    "msg_1",
